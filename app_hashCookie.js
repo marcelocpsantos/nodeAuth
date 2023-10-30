@@ -21,9 +21,21 @@ User.sync();
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser());
 
+function geraCookie(req){
+  const ip = req.socket.address().address;
+  const data = Date().toString().slice(0,16);
+  const salt='picole';
+  const cookie = crypto.createHash('md5').update(ip+data+salt).digest('hex');
+  return cookie;
+}
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname+'/static/authForm.html');
 })
+app.get('/falhaLogin', (req, res) => {
+  res.send('<script>alert("email ou senha incorretos");history.back()</script>');
+})
+
 
 app.post('/', async (req, res) => {
     const email=req.body.email;
@@ -36,22 +48,22 @@ app.post('/', async (req, res) => {
 
     const usuario = await User.findOne({ where: { email:email, senha:hashSenha } });
     if (usuario === null) {
-        res.cookie('validado','0');
-        res.send('email ou senha invalidos');
+        res.cookie('validado','FALSE');
+        res.redirect('/falhaLogin')
     } else {
-        console.log(`Achou : email${usuario.email} / ${usuario.senha}`);
-        res.cookie('validado','1');
-        res.send('Usuário valido');
+        res.cookie('validado',geraCookie(req));
+        res.redirect('/sistema')
     }
 })
 
 app.get('/sistema',function(req,res){
     const validado=req.cookies.validado;
-    console.log(`Cookie recebido: ${validado}`);
-    if(validado)
+    
+    if(validado==geraCookie(req)){
         res.send('<h1> Conseguiu Acesso ao Sistema</h1>')
-    else
+    }else{
         res.send('<h1> Acesso RECUSADO</h1>')
+    }
 })
 
 app.listen(3000, () => {
